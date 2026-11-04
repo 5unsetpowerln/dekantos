@@ -6,6 +6,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export WINEPREFIX="${WINEPREFIX:-$HERE/prefix}"
+export FONTCONFIG_FILE="$HERE/fonts.conf"
 EXE="${1:?usage: run.sh <executable> [args...]}"
 shift
 
@@ -38,6 +39,25 @@ install_dxvk() {
   rm -rf "$tmp"
 }
 
+# Set the Windows defaults that a new Wine prefix lacks. Fonts: Windows smooths text with ClearType,
+# while Wine defaults to grayscale smoothing, which the gasp table of many UI fonts turns off at small sizes.
+set_windows_defaults() {
+  local reg
+  reg="$(mktemp --suffix=.reg)"
+  cat >"$reg" <<'EOF'
+REGEDIT4
+
+[HKEY_CURRENT_USER\Control Panel\Desktop]
+"FontSmoothing"="2"
+"FontSmoothingType"=dword:00000002
+"FontSmoothingGamma"=dword:00000578
+"FontSmoothingOrientation"=dword:00000001
+EOF
+  wine regedit "$reg"
+  wineserver -w
+  rm "$reg"
+}
+
 # Some applications (e.g. LINE) verify the signatures of the system DLLs they load. Install our own
 # root CA and catalogs holding the Authenticode hashes of the DLLs in system32 and syswow64, so they
 # look like signed OS files. The catalogs are built after DXVK is installed, so they cover its DLLs.
@@ -47,6 +67,7 @@ setup_prefix() {
   local dir files cats=()
   wineboot -u
   wineserver -w
+  set_windows_defaults
   install_dxvk
   if [[ ! -d "$ca" ]]; then
     python3 "$HERE/tools/gen_ca.py" "$ca" >/dev/null
