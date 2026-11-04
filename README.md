@@ -1,4 +1,6 @@
-# windows-execution (Wine environment package)
+# Dekantos
+
+*Glass that wakes the sleeping wine, and opens what was sealed.*
 
 An environment for running Windows applications on Linux with Wine, as close to a real Windows machine as possible and without manual setup.
 
