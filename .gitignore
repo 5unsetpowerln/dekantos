@@ -2,3 +2,5 @@
 /prefix/
 # Windows programs the user keeps locally (distributed files, so not tracked)
 /programs/
+# Downloads cached by run.sh
+/.cache/
