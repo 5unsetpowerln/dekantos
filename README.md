@@ -1,47 +1,47 @@
-# windows-execution (Wine環境パッケージ)
+# windows-execution (Wine environment package)
 
-WindowsアプリをLinux上のWineで、追加の手設定なしに実機に近く動かすための環境を用意する。
+An environment for running Windows applications on Linux with Wine, as close to a real Windows machine as possible and without manual setup.
 
-## 使い方
+## Usage
 
 ```sh
-./run.sh <実行ファイル> [引数...]
+./run.sh <executable> [args...]
 ```
 
-- 実行ファイルは、Unixのパスでも`C:\...`の形のパスでもよい。
-- prefixは`WINEPREFIX`で指定する。未指定なら、このディレクトリの`prefix/`を使う。
-- 実行ファイルが行った変更 (インストールなど)はprefixに残り、次回以降の実行で使える。
-- 初回と、Wineの版が変わったときは、実行の前にprefixを整える (30秒ほどかかる)。
+- The executable can be given as a Unix path or as a `C:\...` path.
+- The prefix is `WINEPREFIX`. If it is not set, `prefix/` in this directory is used.
+- Changes made by the executable (such as an installation) stay in the prefix and are available to later runs.
+- On the first run, and whenever the Wine version changes, the prefix is prepared before the executable runs (this takes about 30 seconds).
 
-例: LINE
+Example: LINE
 
 ```sh
-# インストールする (利用規約に同意して進める)
+# Install it (agree to the terms of use and continue)
 ./run.sh ~/Downloads/LineInst.exe
 
-# インストールしたLINEを起動する
+# Start the installed LINE
 ./run.sh prefix/drive_c/users/$USER/AppData/Local/LINE/bin/LineLauncher.exe
 ```
 
-LINEの起動口は、LINEがレジストリに登録している`LineLauncher.exe`である。
-`LINE.exe`を直接実行すると、起動トークンがないため終了する。
+The entry point of LINE is `LineLauncher.exe`, which LINE registers in the registry.
+Running `LINE.exe` directly makes it exit, because it is started without a launch token.
 
-## 前提
+## Requirements
 
-- `wine` (64bit WoW64構成、wine-11.17で確認)
-- `python3`と、`cryptography`、`asn1crypto`パッケージ
+- `wine` (64-bit WoW64 setup, tested with wine-11.17)
+- `python3` with the `cryptography` and `asn1crypto` packages
 
-## 仕組み
+## How it works
 
-`LineInst.exe`やLINE本体のように、起動時に自分が読み込むシステムDLL (`gdiplus.dll`、`crypt32.dll`など)のAuthenticode署名を`WinVerifyTrust`で検証するアプリがある。
-Wineの内蔵DLLは埋め込み署名もカタログ署名も持たないため、こうしたアプリは「Security verification failed (NO_SIGNATURE)」で止まる。
+Some applications, such as `LineInst.exe` and LINE itself, verify the Authenticode signatures of the system DLLs they load (`gdiplus.dll`, `crypt32.dll`, and so on) with `WinVerifyTrust`.
+Wine's builtin DLLs have neither embedded signatures nor catalog signatures, so these applications stop with "Security verification failed (NO_SIGNATURE)".
 
-`run.sh`は、この検証を実機と同じ形で通すため、prefixを整えるときに次を行う。
+To let this verification pass the same way it does on Windows, `run.sh` does the following when it prepares the prefix:
 
-1. Windowsのシステムコンポーネントを模した自作ルートCAを生成し、prefixのRootストアに導入する。
-2. prefix内の`syswow64` (32bit)と`system32` (64bit)の全システムDLLについて、Authenticodeハッシュを載せたセキュリティカタログ (`.cat`)を作り、そのCAに連なるコード署名証明書でSHA1署名する。
-3. 両カタログを`catroot\{127d0a1d-...}`に置く。
+1. Generate a root CA that imitates the Windows system components, and add it to the Root store of the prefix.
+2. For all system DLLs in `syswow64` (32-bit) and `system32` (64-bit) of the prefix, build security catalogs (`.cat`) holding their Authenticode hashes, and sign them with SHA1 using a code signing certificate chained to that CA.
+3. Put both catalogs in `catroot\{127d0a1d-...}`.
 
-カタログのハッシュはWineのDLLの中身に依存するため、`run.sh`はprefixを整えたときのWineの版を記録し、版が変わったらprefixを更新してカタログを作り直す。
+The catalog hashes depend on the contents of Wine's DLLs, so `run.sh` records the Wine version it prepared the prefix with, and updates the prefix and rebuilds the catalogs when the version changes.
 
-`programs/`は、手元のインストーラーなどを置くための、gitで追跡しないディレクトリである。
+`programs/` is a directory, not tracked by git, for keeping installers and other programs locally.
