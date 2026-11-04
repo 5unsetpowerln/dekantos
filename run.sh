@@ -66,9 +66,10 @@ setup_prefix() {
   done
 }
 
-# The catalogs hold hashes of the DLL contents, so prepare the prefix again when Wine or DXVK changes
-stamp="$WINEPREFIX/.windows-execution-wine"
-version="$(wine --version) dxvk-$DXVK_VERSION"
+# Prepare the prefix again when Wine or this setup (run.sh, tools) changes. This also keeps the
+# catalogs in sync with the DLLs they hash.
+stamp="$WINEPREFIX/.windows-execution-setup"
+version="$(wine --version) $(cat "$HERE/run.sh" "$HERE"/tools/*.py | sha256sum | cut -d' ' -f1)"
 if [[ ! -f "$stamp" || "$(<"$stamp")" != "$version" ]]; then
   setup_prefix
   echo "$version" >"$stamp"
