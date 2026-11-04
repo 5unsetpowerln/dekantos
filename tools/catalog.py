@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Wineの内蔵DLLを署名検証に通すためのセキュリティカタログ (.cat)を作る。
+"""Build a security catalog (.cat) that lets Wine's builtin DLLs pass signature verification.
 
-Wineのwintrustが読む形に合わせ、各メンバーに CAT_MEMBERINFO と
-SPC_INDIRECT_DATA の2属性を入れ、後者のDigestに各DLLのAuthenticodeハッシュを置く。
-CAに連なるコード署名証明書 (既定でCN=Microsoft Windows)で署名する。
+To match what Wine's wintrust reads, each member gets two attributes, CAT_MEMBERINFO and
+SPC_INDIRECT_DATA, and the Digest of the latter holds the Authenticode hash of the DLL.
+The catalog is signed with a code signing certificate chained to the CA (CN=Microsoft Windows by default).
 
-使い方:
+Usage:
   catalog.py --ca-dir <dir> --out <cat> --name "Microsoft Windows" <dll> [<dll> ...]
-  <ca-dir> には gen_ca.py が作った ca.key / ca.der が要る。
+  <ca-dir> must contain ca.key / ca.der created by gen_ca.py.
 """
 import argparse
 import datetime
@@ -31,7 +31,7 @@ OID_SHA1 = "1.3.14.3.2.26"
 MEMBER_GUID = "{C689AAB8-8E78-11D0-8C47-00C04FC295EE}"
 
 
-# --- Authenticodeハッシュ (Wineのpe_image_hashと同じ計算) ---
+# --- Authenticode hash (same computation as Wine's pe_image_hash) ---
 def authenticode_sha1(path):
     data = bytearray(pathlib.Path(path).read_bytes())
     pe = struct.unpack_from("<I", data, 0x3C)[0]
@@ -56,7 +56,7 @@ def authenticode_sha1(path):
     return h.digest()
 
 
-# --- CTLのASN.1構造 ---
+# --- ASN.1 structures of the CTL ---
 class AlgId(core.Sequence):
     _fields = [("algorithm", core.ObjectIdentifier), ("parameters", core.Any, {"optional": True})]
 
@@ -120,7 +120,7 @@ def build_entry(dll):
     spc = SpcIndirectData({
         "data": SpcAttrTypeAndValue({
             "type": OID_SPC_PE_IMAGE_DATA,
-            "value": core.Any.load(b"\x30\x00"),  # 空のSpcPeImageData (Wineは中身を見ない)
+            "value": core.Any.load(b"\x30\x00"),  # empty SpcPeImageData (Wine does not look inside)
         }),
         "messageDigest": DigestInfo({
             "digestAlgorithm": AlgId({"algorithm": OID_SHA1, "parameters": null()}),
@@ -143,9 +143,9 @@ def build_ctl(dlls):
         try:
             e = build_entry(d)
         except (AssertionError, struct.error, OSError):
-            continue  # PEでないファイルは飛ばす
+            continue  # skip files that are not PE images
         tag = bytes(e["subjectIdentifier"].native)
-        if tag in seen:  # 同一ハッシュ (同じ内容のDLL)は1回だけ
+        if tag in seen:  # add DLLs with the same hash (same content) only once
             continue
         seen.add(tag)
         entries.append(e)
@@ -181,8 +181,8 @@ def make_codesign_cert(ca_key, ca_cert, name):
 
 
 def build_catalog(ctl_der, sign_key, sign_cert, ca_cert):
-    # MS カタログの慣習: encapContentInfo = SEQUENCE { OID, [0] EXPLICIT { CTL-SEQUENCE } }
-    # ([0] の中は OCTET STRING ではなく CTL をそのまま置く。asn1cryptoのAnyは[0]を付けないので手で組む)
+    # MS catalog convention: encapContentInfo = SEQUENCE { OID, [0] EXPLICIT { CTL-SEQUENCE } }
+    # (the CTL goes directly inside [0], not in an OCTET STRING; asn1crypto's Any omits [0], so build it by hand)
     def der_len(n):
         if n < 0x80:
             return bytes([n])
@@ -195,8 +195,8 @@ def build_catalog(ctl_der, sign_key, sign_cert, ca_cert):
     eci_der = b"\x30" + der_len(len(body)) + body
     econtent = cms.ContentInfo.load(eci_der)
 
-    # CryptCATAdminEnumCatalogFromHash は MS Base Provider (PROV_RSA_FULL, SHA1のみ)で
-    # カタログを開く。SHA256だと CryptMsgUpdate が失敗するため、CMSの署名はSHA1で作る。
+    # CryptCATAdminEnumCatalogFromHash opens catalogs with the MS Base Provider (PROV_RSA_FULL, SHA1 only),
+    # and CryptMsgUpdate fails on SHA256, so sign the CMS with SHA1.
     digest = hashlib.sha1(ctl_der).digest()
     signed_attrs = cms.CMSAttributes([
         cms.CMSAttribute({"type": "content_type", "values": [OID_CTL]}),

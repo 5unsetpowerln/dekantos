@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""自作のルートCA証明書を生成し、WineのRootストアに入れる.reg を書き出す。
-使い方: gen_ca.py <出力ディレクトリ>
-  <dir>/ca.key, ca.der, ca.pem, root.reg を作る。"""
+"""Generate our own root CA certificate and write a .reg that adds it to Wine's Root store.
+Usage: gen_ca.py <output directory>
+  Creates <dir>/ca.key, ca.der, ca.pem and root.reg."""
 import struct
 import sys
 import hashlib
@@ -48,7 +48,7 @@ der = cert.public_bytes(serialization.Encoding.DER)
 thumb = hashlib.sha1(der).hexdigest().upper()
 blob = struct.pack("<III", CERT_CERT_PROP_ID, 1, len(der)) + der
 
-# .reg の REG_BINARY は「hex:」にカンマ区切りの16進を、76桁で折り返して書く
+# REG_BINARY in a .reg is "hex:" followed by comma-separated hex bytes, wrapped at 76 columns
 hexbytes = ",".join(f"{b:02x}" for b in blob)
 lines, cur = [], "\"Blob\"=hex:"
 for tok in hexbytes.split(","):
@@ -67,7 +67,7 @@ reg = (
     + blob_reg.replace("\n", "\r\n") + "\r\n"
 )
 (out / "root.reg").write_text(reg, encoding="utf-16-le")
-# UTF-16 BOM を付ける
+# Add a UTF-16 BOM
 data = (out / "root.reg").read_bytes()
 (out / "root.reg").write_bytes(b"\xff\xfe" + data)
 print("thumbprint", thumb)

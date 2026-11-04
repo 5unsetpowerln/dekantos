@@ -1,4 +1,4 @@
-# run.shが既定で使うprefix
+# Default prefix used by run.sh
 /prefix/
-# 利用者が手元に置くWindowsのプログラム (配布物なので追跡しない)
+# Windows programs the user keeps locally (distributed files, so not tracked)
 /programs/
