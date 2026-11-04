@@ -11,7 +11,7 @@ An environment for running Windows applications on Linux with Wine, as close to 
 - The executable can be given as a Unix path or as a `C:\...` path.
 - The prefix is `WINEPREFIX`. If it is not set, `prefix/` in this directory is used.
 - Changes made by the executable (such as an installation) stay in the prefix and are available to later runs.
-- On the first run, and whenever the Wine or DXVK version changes, the prefix is prepared before the executable runs (this takes about 30 seconds).
+- On the first run, and whenever Wine or the setup of this package (`run.sh`, `tools/`) changes, the prefix is prepared before the executable runs (this takes about 30 seconds).
 
 Example: LINE
 
@@ -42,6 +42,14 @@ When `run.sh` prepares the prefix, it downloads the DXVK release pinned in `run.
 These are the DLLs Proton replaces with DXVK by default; `d3d8` stays Wine's builtin.
 Wine does not use native DLLs in the system directories without an override, so both steps are needed.
 
+### Font smoothing (ClearType)
+
+Windows smooths text with ClearType by default.
+Wine takes the antialiasing mode of every font from fontconfig, ahead of the ClearType setting in the registry, and hosts commonly enable antialiasing without a subpixel order.
+Wine then uses grayscale, and the gasp table of UI fonts such as Tahoma turns grayscale off at small sizes, so the text is drawn in two colors.
+`run.sh` passes `fonts.conf` to Wine through `FONTCONFIG_FILE`. It includes the host setup and asks for RGB subpixel rendering, which Wine draws without consulting gasp, like ClearType.
+`run.sh` also sets the ClearType defaults of Windows in `HKCU\Control Panel\Desktop`, which applications can query.
+
 ### Signature verification of system DLLs
 
 Some applications, such as `LineInst.exe` and LINE itself, verify the Authenticode signatures of the system DLLs they load (`gdiplus.dll`, `crypt32.dll`, and so on) with `WinVerifyTrust`.
@@ -55,6 +63,6 @@ To let this verification pass the same way it does on Windows, `run.sh` does the
 
 The catalogs are built after DXVK is installed, so they also cover the DXVK DLLs.
 
-The catalog hashes depend on the contents of the DLLs, so `run.sh` records the Wine and DXVK versions it prepared the prefix with, and prepares the prefix again when either changes.
+The catalog hashes depend on the contents of the DLLs, so `run.sh` records the Wine version and a hash of its setup (`run.sh`, `tools/*.py`) it prepared the prefix with, and prepares the prefix again when either changes.
 
 `programs/` is a directory, not tracked by git, for keeping installers and other programs locally.
