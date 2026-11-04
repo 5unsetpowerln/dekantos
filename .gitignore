@@ -1,0 +1,4 @@
+# Windowsのプログラム本体 (インストーラーや実行ファイル)は配布物なので追跡しない。
+# 利用者が programs/ に置く。README だけ追跡する。
+/programs/*
+!/programs/README.md
