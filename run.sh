@@ -15,17 +15,23 @@ DXVK_SHA256=40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608
 # The DLLs Proton replaces with DXVK by default (d3d8 stays builtin)
 DXVK_DLLS=(d3d11 d3d10core d3d9 dxgi)
 
+# fetch <url> <file> <sha256>: download url to file once, then check it against the pinned hash.
+fetch() {
+  if [[ ! -f "$2" ]]; then
+    mkdir -p "$(dirname "$2")"
+    curl -fL -o "$2.part" "$1"
+    mv "$2.part" "$2"
+  fi
+  echo "$3  $2" | sha256sum -c --quiet
+}
+
 # Run Direct3D 9-11 on Vulkan the way Proton does: put the DXVK DLLs in system32 (64-bit) and
 # syswow64 (32-bit), and override them to native, since Wine ignores native DLLs there otherwise.
 install_dxvk() {
   local archive="$HERE/.cache/dxvk-$DXVK_VERSION.tar.gz"
   local tmp dll
-  if [[ ! -f "$archive" ]]; then
-    mkdir -p "$HERE/.cache"
-    curl -fL -o "$archive.part" "https://github.com/doitsujin/dxvk/releases/download/v$DXVK_VERSION/dxvk-$DXVK_VERSION.tar.gz"
-    mv "$archive.part" "$archive"
-  fi
-  echo "$DXVK_SHA256  $archive" | sha256sum -c --quiet
+  fetch "https://github.com/doitsujin/dxvk/releases/download/v$DXVK_VERSION/dxvk-$DXVK_VERSION.tar.gz" \
+    "$archive" "$DXVK_SHA256"
   tmp="$(mktemp -d)"
   tar -xzf "$archive" -C "$tmp"
   printf 'REGEDIT4\n\n[HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides]\n' >"$tmp/dxvk.reg"
