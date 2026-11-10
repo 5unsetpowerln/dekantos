@@ -14,6 +14,9 @@ DXVK_VERSION=3.1.1
 DXVK_SHA256=40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608
 # The DLLs Proton replaces with DXVK by default (d3d8 stays builtin)
 DXVK_DLLS=(d3d11 d3d10core d3d9 dxgi)
+LIBERATION_VERSION=2.1.5
+LIBERATION_URL=https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz
+LIBERATION_SHA256=7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0
 
 # fetch <url> <file> <sha256>: download url to file once, then check it against the pinned hash.
 fetch() {
@@ -64,6 +67,21 @@ EOF
   rm "$reg"
 }
 
+# A new Wine prefix has no Arial, Times New Roman or Courier New, so text asking for them falls back to
+# Tahoma, whose embedded bitmaps render without antialiasing. Install metric-compatible stand-ins.
+install_fonts() {
+  local archive="$HERE/.cache/liberation-fonts-ttf-$LIBERATION_VERSION.tar.gz"
+  local tmp
+  fetch "$LIBERATION_URL" "$archive" "$LIBERATION_SHA256"
+  tmp="$(mktemp -d)"
+  tar -xzf "$archive" -C "$tmp"
+  python3 "$HERE/tools/fonts.py" "$tmp/liberation-fonts-ttf-$LIBERATION_VERSION" \
+    "$WINEPREFIX/drive_c/windows/Fonts" "$tmp/fonts.reg"
+  wine regedit "$tmp/fonts.reg"
+  wineserver -w
+  rm -rf "$tmp"
+}
+
 # Some applications (e.g. LINE) verify the signatures of the system DLLs they load. Install our own
 # root CA and catalogs holding the Authenticode hashes of the DLLs in system32 and syswow64, so they
 # look like signed OS files. The catalogs are built after DXVK is installed, so they cover its DLLs.
@@ -74,6 +92,7 @@ setup_prefix() {
   wineboot -u
   wineserver -w
   set_windows_defaults
+  install_fonts
   install_dxvk
   if [[ ! -d "$ca" ]]; then
     python3 "$HERE/tools/gen_ca.py" "$ca" >/dev/null
