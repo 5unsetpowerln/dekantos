@@ -8,6 +8,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${WINEPREFIX:?usage: WINEPREFIX=<prefix> run.sh <executable> [args...]}"
 export WINEPREFIX
 export FONTCONFIG_FILE="$HERE/fonts.conf"
+# winemenubuilder writes menu entries, desktop shortcuts and file associations into the host's home,
+# outside the prefix.
+export WINEDLLOVERRIDES="winemenubuilder.exe=d${WINEDLLOVERRIDES:+;$WINEDLLOVERRIDES}"
 EXE="${1:?usage: run.sh <executable> [args...]}"
 shift
 
