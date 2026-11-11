@@ -86,6 +86,17 @@ install_fonts() {
   rm -rf "$tmp"
 }
 
+# Wine links the user folders (Documents, Desktop, Downloads, ...) to the host's home. Make them folders
+# of the prefix, so that what applications keep there stays in the prefix. Wine creates the links only
+# for folders that do not exist yet, so it leaves these folders alone afterwards.
+keep_user_folders_in_prefix() {
+  local link
+  while IFS= read -r -d '' link; do
+    rm "$link"
+    mkdir "$link"
+  done < <(find "$WINEPREFIX/drive_c/users" -type l -print0)
+}
+
 # Some applications (e.g. LINE) verify the signatures of the system DLLs they load. Install our own
 # root CA and catalogs holding the Authenticode hashes of the DLLs in system32 and syswow64, so they
 # look like signed OS files. The catalogs are built after DXVK is installed, so they cover its DLLs.
@@ -95,6 +106,7 @@ setup_prefix() {
   local dir files cats=()
   wineboot -u
   wineserver -w
+  keep_user_folders_in_prefix
   set_windows_defaults
   install_fonts
   install_dxvk
