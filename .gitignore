@@ -1,4 +1,4 @@
-# Default prefix used by run.sh
+# A prefix kept next to the package (prefixes are not part of the package)
 /prefix/
 # Windows programs the user keeps locally (distributed files, so not tracked)
 /programs/

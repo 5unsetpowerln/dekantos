@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Run the given Windows executable in this package's prefix.
-#   ./run.sh <executable (Unix path or C:\...)> [args...]
-# The prefix is WINEPREFIX, or prefix/ next to this script. Changes made by the executable stay in it.
+# Run the given Windows executable in the prefix WINEPREFIX, which must be given. A prefix that does
+# not exist yet is created and prepared first. Changes made by the executable stay in the prefix.
+#   WINEPREFIX=<prefix> ./run.sh <executable (Unix path or C:\...)> [args...]
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export WINEPREFIX="${WINEPREFIX:-$HERE/prefix}"
+: "${WINEPREFIX:?usage: WINEPREFIX=<prefix> run.sh <executable> [args...]}"
+export WINEPREFIX
 export FONTCONFIG_FILE="$HERE/fonts.conf"
 EXE="${1:?usage: run.sh <executable> [args...]}"
 shift
